@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Календарь</title>
+
+<style>
+
+body{
+font-family:-apple-system, sans-serif;
+margin:0;
+color:white;
+text-align:center;
+background:#000;
+background-size:cover;
+background-position:center;
+background-attachment:fixed;
+}
+
+.overlay{
+background:rgba(0,0,0,0.55);
+min-height:100vh;
+}
+
+h1{
+margin:10px 0;
+}
+
+.calendar{
+display:grid;
+grid-template-columns:repeat(7,1fr);
+gap:6px;
+padding:10px;
+}
+
+.day{
+background:rgba(0,0,0,0.6);
+border-radius:10px;
+min-height:60px;
+padding-top:5px;
+position:relative;
+display:flex;
+flex-direction:column;
+align-items:center;
+}
+
+.dayNumber{
+font-size:16px;
+}
+
+.colors{
+position:absolute;
+bottom:5px;
+display:flex;
+gap:3px;
+}
+
+.dot{
+width:8px;
+height:8px;
+border-radius:50%;
+}
+
+.selected{
+outline:3px solid #4da3ff;
+}
+
+.controls{
+padding:10px;
+}
+
+button{
+padding:8px 12px;
+border-radius:8px;
+border:none;
+margin:5px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="overlay">
+
+<h1 id="month"></h1>
+
+<div id="calendar" class="calendar"></div>
+
+<div class="controls">
+
+<h3 id="selectedText">Выберите день</h3>
+
+<input type="color" id="colorPicker">
+<button onclick="addColor()">Добавить цвет</button>
+
+<br><br>
+
+<input type="file" accept="image/*" onchange="addImage(event)">
+
+</div>
+
+</div>
+
+<script>
+
+const calendar=document.getElementById("calendar")
+const monthText=document.getElementById("month")
+
+let now=new Date()
+let year=now.getFullYear()
+let month=now.getMonth()
+
+let selectedKey=null
+
+let data=JSON.parse(localStorage.getItem("calendarData")||"{}")
+
+monthText.innerText=now.toLocaleString("ru",{month:"long",year:"numeric"})
+
+function buildCalendar(){
+
+calendar.innerHTML=""
+
+let days=new Date(year,month+1,0).getDate()
+
+for(let i=1;i<=days;i++){
+
+let day=document.createElement("div")
+day.className="day"
+
+let num=document.createElement("div")
+num.className="dayNumber"
+num.textContent=i
+
+day.appendChild(num)
+
+let key=year+"-"+month+"-"+i
+
+if(data[key] && data[key].colors){
+
+let colors=document.createElement("div")
+colors.className="colors"
+
+data[key].colors.forEach(c=>{
+let dot=document.createElement("div")
+dot.className="dot"
+dot.style.background=c
+colors.appendChild(dot)
+})
+
+day.appendChild(colors)
+
+}
+
+day.onclick=()=>selectDay(i,day)
+
+calendar.appendChild(day)
+
+}
+
+}
+
+function selectDay(day,element){
+
+document.querySelectorAll(".day").forEach(d=>d.classList.remove("selected"))
+element.classList.add("selected")
+
+selectedKey=year+"-"+month+"-"+day
+
+document.getElementById("selectedText").innerText="День "+day
+
+setWallpaper()
+
+}
+
+function addColor(){
+
+if(!selectedKey) return
+
+let color=document.getElementById("colorPicker").value
+
+if(!data[selectedKey]){
+data[selectedKey]={colors:[]}
+}
+
+data[selectedKey].colors.push(color)
+
+save()
+
+buildCalendar()
+
+}
+
+function addImage(event){
+
+if(!selectedKey) return
+
+let reader=new FileReader()
+
+reader.onload=function(){
+
+if(!data[selectedKey]){
+data[selectedKey]={colors:[]}
+}
+
+data[selectedKey].image=reader.result
+
+save()
+
+setWallpaper()
+
+}
+
+reader.readAsDataURL(event.target.files[0])
+
+}
+
+function setWallpaper(){
+
+if(data[selectedKey] && data[selectedKey].image){
+
+document.body.style.backgroundImage="url("+data[selectedKey].image+")"
+
+}else{
+
+document.body.style.backgroundImage="none"
+
+}
+
+}
+
+function save(){
+localStorage.setItem("calendarData",JSON.stringify(data))
+}
+
+buildCalendar()
+
+</script>
+
+</body>
+</html>
