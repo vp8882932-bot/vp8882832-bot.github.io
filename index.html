@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Календарь с подсветкой сегодня</title>
+<title>Динамический календарь</title>
 <link rel="icon" href="favicon.png" type="image/png">
 <link rel="apple-touch-icon" href="favicon.png">
 <style>
@@ -45,7 +45,7 @@ h1{text-align:center;margin:10px 0 5px 0;}
   padding-top:5px;
 }
 .selected{outline:3px solid #4da3ff;}
-.today{border:3px solid #ffeb3b;} /* подсветка сегодняшнего дня */
+.today{border:3px solid #ffeb3b;} 
 .colors{display:flex;justify-content:center;gap:3px;position:absolute;bottom:25px;left:0;right:0;}
 .dot{width:10px;height:10px;border-radius:50%;}
 .notes{font-size:12px;margin-top:5px;text-align:center;}
@@ -80,16 +80,16 @@ input[type="text"]{padding:3px;border-radius:4px;border:none;width:80px;}
 </div>
 
 <script>
-const calendar=document.getElementById("calendar");
-const monthEl=document.getElementById("month");
-const weekdaysEl=document.getElementById("weekdays");
-const legendEl=document.getElementById("legendItems");
+const calendar = document.getElementById("calendar");
+const monthEl = document.getElementById("month");
+const weekdaysEl = document.getElementById("weekdays");
+const legendEl = document.getElementById("legendItems");
 
-let now=new Date();
-let year=now.getFullYear();
-let month=now.getMonth();
-let todayDate=now.getDate(); // Сегодняшнее число
-monthEl.innerHTML=now.toLocaleString("ru",{month:"long",year:"numeric"});
+let now = new Date();
+let year = now.getFullYear();
+let month = now.getMonth();
+let todayDate = now.getDate();
+monthEl.innerHTML = now.toLocaleString("ru", { month: "long", year: "numeric" });
 
 const weekdayNames = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
 weekdayNames.forEach(d=>{
@@ -99,21 +99,23 @@ weekdayNames.forEach(d=>{
   weekdaysEl.appendChild(el);
 });
 
-let selectedDay=null;
-let data=JSON.parse(localStorage.getItem("caldata")||"{}");
-let legend=JSON.parse(localStorage.getItem("colorLegend")||"{}");
+let selectedDay = null;
+let data = JSON.parse(localStorage.getItem("caldata")||"{}");
+let legend = JSON.parse(localStorage.getItem("colorLegend")||"{}");
 
+// Восстанавливаем фон
 if(localStorage.getItem("wallpaper")){
-  document.body.style.backgroundImage="url("+localStorage.getItem("wallpaper")+")";
+  document.body.style.backgroundImage = "url("+localStorage.getItem("wallpaper")+")";
 }
 
+// Строим календарь
 function buildCalendar(){
-  calendar.innerHTML="";
+  calendar.innerHTML = "";
   const daysInMonth = new Date(year, month+1,0).getDate();
-  let firstDay = new Date(year, month,1).getDay(); 
-  let offset = (firstDay + 6) % 7; // понедельник=0, воскресенье=6
+  const firstDay = new Date(year, month,1).getDay(); 
+  const offset = (firstDay + 6) % 7; // понедельник = 0, воскресенье = 6
 
-  // пустые дни перед первым числом
+  // пустые дни перед 1 числом
   for(let i=0;i<offset;i++){
     let empty=document.createElement("div");
     empty.className="day";
@@ -126,20 +128,20 @@ function buildCalendar(){
     let d=document.createElement("div");
     d.className="day";
     d.dataset.day=i;
-    let key=year+"-"+month+"-"+i;
+    let key = year+"-"+month+"-"+i;
     d.innerHTML = i;
 
-    // Подсветка сегодняшнего дня
-    if(i===todayDate) d.classList.add("today");
+    // подсветка сегодняшнего дня
+    if(i === todayDate) d.classList.add("today");
 
     // цвета
     if(data[key] && data[key].colors){
-      let colorsDiv=document.createElement("div");
-      colorsDiv.className="colors";
+      let colorsDiv = document.createElement("div");
+      colorsDiv.className = "colors";
       data[key].colors.forEach(c=>{
-        let dot=document.createElement("div");
-        dot.className="dot";
-        dot.style.background=c.color;
+        let dot = document.createElement("div");
+        dot.className = "dot";
+        dot.style.background = c.color;
         colorsDiv.appendChild(dot);
       });
       d.appendChild(colorsDiv);
@@ -147,21 +149,30 @@ function buildCalendar(){
 
     // заметки
     if(data[key] && data[key].note){
-      let noteDiv=document.createElement("div");
-      noteDiv.className="notes";
-      noteDiv.textContent=data[key].note;
+      let noteDiv = document.createElement("div");
+      noteDiv.className = "notes";
+      noteDiv.textContent = data[key].note;
       d.appendChild(noteDiv);
     }
 
-    d.onclick=function(){
-      selectedDay=key;
-      document.getElementById("selected").innerHTML="День "+i;
+    // клик по дню
+    d.onclick = function(){
+      selectedDay = key;
+      document.getElementById("selected").innerHTML = "День "+i;
       document.querySelectorAll(".day").forEach(dd=>dd.classList.remove("selected"));
       this.classList.add("selected");
-      let note = prompt("Введите заметку для дня", data[selectedDay]?.note||"");
-      if(note!==null){
+
+      // inline редактирование заметки
+      let noteDiv = this.querySelector(".notes");
+      if(!noteDiv){
+        noteDiv = document.createElement("div");
+        noteDiv.className = "notes";
+        this.appendChild(noteDiv);
+      }
+      let newNote = prompt("Введите заметку для дня", data[selectedDay]?.note||"");
+      if(newNote!==null){
         if(!data[selectedDay]) data[selectedDay]={colors:[]};
-        data[selectedDay].note=note;
+        data[selectedDay].note = newNote;
         localStorage.setItem("caldata", JSON.stringify(data));
         buildCalendar();
       }
@@ -171,22 +182,24 @@ function buildCalendar(){
   renderLegend();
 }
 
+// Добавление цвета с названием
 function addColor(){
   if(!selectedDay) return;
-  let c=document.getElementById("color").value;
-  let name=document.getElementById("colorName").value || "";
+  let c = document.getElementById("color").value;
+  let name = document.getElementById("colorName").value || "";
   if(!data[selectedDay]) data[selectedDay]={colors:[]};
   data[selectedDay].colors.push({color:c,name:name});
   localStorage.setItem("caldata", JSON.stringify(data));
 
   if(name){
-    legend[c]=name;
+    legend[c] = name;
     localStorage.setItem("colorLegend", JSON.stringify(legend));
   }
 
   buildCalendar();
 }
 
+// Легенда цветов
 function renderLegend(){
   legendEl.innerHTML="";
   for(let c in legend){
@@ -197,12 +210,13 @@ function renderLegend(){
   }
 }
 
+// общий фон
 function setWallpaper(e){
   let reader=new FileReader();
-  reader.onload=function(){
-    let img=reader.result;
-    document.body.style.backgroundImage="url("+img+")";
-    localStorage.setItem("wallpaper",img);
+  reader.onload = function(){
+    let img = reader.result;
+    document.body.style.backgroundImage = "url("+img+")";
+    localStorage.setItem("wallpaper", img);
   }
   reader.readAsDataURL(e.target.files[0]);
 }
