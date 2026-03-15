@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="ru">
-<link rel="icon" href="favicon.png" type="image/png">
-<link rel="apple-touch-icon" href="favicon.png">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Календарь с общим фоном</title>
+<title>Календарь с заметками</title>
+
+<!-- favicon -->
+<link rel="icon" href="favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="favicon.png">
+
 <style>
 body{
   margin:0;
@@ -21,95 +24,174 @@ body{
   min-height:100vh;
   padding:10px;
 }
-h1{text-align:center;margin:10px 0 15px 0;}
+h1{text-align:center;margin:10px 0 5px 0;}
+#weekdays{text-align:center;margin-bottom:5px;}
+.weekday{
+  display:inline-block;
+  width:13%;
+  text-align:center;
+  font-weight:bold;
+}
 #calendar{text-align:center;}
 .day{
   display:inline-block;
   width:13%;
   margin:1%;
-  height:60px;
+  min-height:80px;
   background:rgba(0,0,0,0.7);
   border-radius:8px;
-  line-height:60px;
-  font-size:18px;
+  line-height:20px;
+  font-size:16px;
   cursor:pointer;
   position:relative;
+  vertical-align:top;
+  padding-top:5px;
 }
 .selected{outline:3px solid #4da3ff;}
-.colors{display:flex;justify-content:center;gap:3px;position:absolute;bottom:4px;left:0;right:0;}
-.dot{width:8px;height:8px;border-radius:50%;}
-.controls{text-align:center;margin-top:20px;}
-button{padding:8px 10px;border-radius:8px;border:none;margin:5px;}
+.colors{display:flex;justify-content:center;gap:3px;position:absolute;bottom:25px;left:0;right:0;}
+.dot{width:10px;height:10px;border-radius:50%;}
+.notes{font-size:12px;margin-top:5px;text-align:center;}
+.controls{text-align:center;margin-top:15px;}
+button{padding:6px 10px;border-radius:6px;border:none;margin:5px;}
+.color-legend{margin-top:15px;padding:5px;background:rgba(0,0,0,0.6);border-radius:6px;}
+.legend-item{display:inline-block;margin-right:15px;font-size:14px;}
+.legend-color{display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:middle;margin-right:4px;}
+input[type="text"]{padding:3px;border-radius:4px;border:none;width:80px;}
 </style>
 </head>
 <body>
 <div class="overlay">
 <h1 id="month"></h1>
+
+<div id="weekdays"></div>
+
 <div id="calendar"></div>
+
 <div class="controls">
 <div id="selected">Выберите день</div>
 <br>
 <input type="color" id="color">
-<button onclick="addColor()">Цвет</button>
+<input type="text" id="colorName" placeholder="Название цвета">
+<button onclick="addColor()">Добавить цвет</button>
 <br><br>
 <input type="file" accept="image/*" onchange="setWallpaper(event)">
+</div>
+
+<div class="color-legend">
+  <strong>Легенда цветов:</strong>
+  <span id="legendItems"></span>
 </div>
 </div>
 
 <script>
 const calendar=document.getElementById("calendar");
 const monthEl=document.getElementById("month");
+const weekdaysEl=document.getElementById("weekdays");
+const legendEl=document.getElementById("legendItems");
+
 let now=new Date();
 let year=now.getFullYear();
 let month=now.getMonth();
 monthEl.innerHTML=now.toLocaleString("ru",{month:"long",year:"numeric"});
-let days=new Date(year,month+1,0).getDate();
+
+const daysInMonth = new Date(year, month+1,0).getDate();
+const weekdayNames = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
+weekdayNames.forEach(d=>{
+  let el=document.createElement("span");
+  el.className="weekday";
+  el.textContent=d;
+  weekdaysEl.appendChild(el);
+});
+
 let selectedDay=null;
 let data=JSON.parse(localStorage.getItem("caldata")||"{}");
+let legend=JSON.parse(localStorage.getItem("colorLegend")||"{}");
 
 // Восстанавливаем общий фон при загрузке
 if(localStorage.getItem("wallpaper")){
   document.body.style.backgroundImage="url("+localStorage.getItem("wallpaper")+")";
 }
 
+// Построение календаря
 function buildCalendar(){
   calendar.innerHTML="";
-  for(let i=1;i<=days;i++){
+  for(let i=1;i<=daysInMonth;i++){
     let d=document.createElement("div");
     d.className="day";
-    d.innerHTML=i;
+    d.dataset.day=i;
     let key=year+"-"+month+"-"+i;
+    
+    d.innerHTML = i; // число дня
+    
+    // отображаем цвета
     if(data[key] && data[key].colors){
       let colorsDiv=document.createElement("div");
       colorsDiv.className="colors";
       data[key].colors.forEach(c=>{
         let dot=document.createElement("div");
         dot.className="dot";
-        dot.style.background=c;
+        dot.style.background=c.color;
         colorsDiv.appendChild(dot);
       });
       d.appendChild(colorsDiv);
     }
+    
+    // добавляем заметку
+    if(data[key] && data[key].note){
+      let noteDiv=document.createElement("div");
+      noteDiv.className="notes";
+      noteDiv.textContent=data[key].note;
+      d.appendChild(noteDiv);
+    }
+
     d.onclick=function(){
-      selectedDay=year+"-"+month+"-"+this.innerHTML;
-      document.getElementById("selected").innerHTML="День "+this.innerHTML;
+      selectedDay=key;
+      document.getElementById("selected").innerHTML="День "+i;
       document.querySelectorAll(".day").forEach(dd=>dd.classList.remove("selected"));
       this.classList.add("selected");
+      let note = prompt("Введите заметку для дня", data[selectedDay]?.note||"");
+      if(note!==null){
+        if(!data[selectedDay]) data[selectedDay]={colors:[]};
+        data[selectedDay].note=note;
+        localStorage.setItem("caldata", JSON.stringify(data));
+        buildCalendar();
+      }
     }
     calendar.appendChild(d);
   }
+  renderLegend();
 }
 
+// Добавление цвета с названием
 function addColor(){
   if(!selectedDay) return;
   let c=document.getElementById("color").value;
+  let name=document.getElementById("colorName").value || "";
   if(!data[selectedDay]) data[selectedDay]={colors:[]};
-  data[selectedDay].colors.push(c);
-  localStorage.setItem("caldata",JSON.stringify(data));
+  data[selectedDay].colors.push({color:c,name:name});
+  localStorage.setItem("caldata", JSON.stringify(data));
+  
+  // Сохраняем легенду
+  if(name){
+    legend[c]=name;
+    localStorage.setItem("colorLegend", JSON.stringify(legend));
+  }
+  
   buildCalendar();
 }
 
-// Загружаем общий фон
+// Отображение легенды цветов
+function renderLegend(){
+  legendEl.innerHTML="";
+  for(let c in legend){
+    let item=document.createElement("span");
+    item.className="legend-item";
+    item.innerHTML=`<span class="legend-color" style="background:${c}"></span>${legend[c]}`;
+    legendEl.appendChild(item);
+  }
+}
+
+// Общий фон
 function setWallpaper(e){
   let reader=new FileReader();
   reader.onload=function(){
