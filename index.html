@@ -3,12 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Календарь с заметками</title>
-
-<!-- favicon -->
-<link rel="icon" href="favicon.png" type="image/png">
-<link rel="apple-touch-icon" href="favicon.png">
-
+<title>Календарь с правильными днями</title>
 <style>
 body{
   margin:0;
@@ -94,7 +89,6 @@ let year=now.getFullYear();
 let month=now.getMonth();
 monthEl.innerHTML=now.toLocaleString("ru",{month:"long",year:"numeric"});
 
-const daysInMonth = new Date(year, month+1,0).getDate();
 const weekdayNames = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
 weekdayNames.forEach(d=>{
   let el=document.createElement("span");
@@ -112,17 +106,26 @@ if(localStorage.getItem("wallpaper")){
   document.body.style.backgroundImage="url("+localStorage.getItem("wallpaper")+")";
 }
 
-// Построение календаря
+// Построение календаря с учётом дня недели
 function buildCalendar(){
   calendar.innerHTML="";
+  const daysInMonth = new Date(year, month+1,0).getDate();
+  const firstDay = new Date(year,month,1).getDay(); // 0=Вск, 1=Пн...
+  let offset = firstDay==0?6:firstDay-1; // сдвиг, чтобы понедельник=0
+  // добавляем пустые блоки перед 1 числом
+  for(let i=0;i<offset;i++){
+    let empty=document.createElement("div");
+    empty.className="day";
+    empty.style.background="transparent";
+    empty.style.cursor="default";
+    calendar.appendChild(empty);
+  }
   for(let i=1;i<=daysInMonth;i++){
     let d=document.createElement("div");
     d.className="day";
     d.dataset.day=i;
     let key=year+"-"+month+"-"+i;
-    
-    d.innerHTML = i; // число дня
-    
+    d.innerHTML = i;
     // отображаем цвета
     if(data[key] && data[key].colors){
       let colorsDiv=document.createElement("div");
@@ -135,8 +138,7 @@ function buildCalendar(){
       });
       d.appendChild(colorsDiv);
     }
-    
-    // добавляем заметку
+    // заметки
     if(data[key] && data[key].note){
       let noteDiv=document.createElement("div");
       noteDiv.className="notes";
@@ -171,7 +173,6 @@ function addColor(){
   data[selectedDay].colors.push({color:c,name:name});
   localStorage.setItem("caldata", JSON.stringify(data));
   
-  // Сохраняем легенду
   if(name){
     legend[c]=name;
     localStorage.setItem("colorLegend", JSON.stringify(legend));
