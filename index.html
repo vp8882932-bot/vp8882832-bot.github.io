@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Динамический календарь</title>
+<title>Календарь с удалением цветов</title>
 <link rel="icon" href="favicon.png" type="image/png">
 <link rel="apple-touch-icon" href="favicon.png">
 <style>
@@ -45,9 +45,9 @@ h1{text-align:center;margin:10px 0 5px 0;}
   padding-top:5px;
 }
 .selected{outline:3px solid #4da3ff;}
-.today{border:3px solid #ffeb3b;} 
+.today{border:3px solid #ffeb3b;}
 .colors{display:flex;justify-content:center;gap:3px;position:absolute;bottom:25px;left:0;right:0;}
-.dot{width:10px;height:10px;border-radius:50%;}
+.dot{width:10px;height:10px;border-radius:50%;cursor:pointer;}
 .notes{font-size:12px;margin-top:5px;text-align:center;}
 .controls{text-align:center;margin-top:15px;}
 button{padding:6px 10px;border-radius:6px;border:none;margin:5px;}
@@ -113,9 +113,8 @@ function buildCalendar(){
   calendar.innerHTML = "";
   const daysInMonth = new Date(year, month+1,0).getDate();
   const firstDay = new Date(year, month,1).getDay(); 
-  const offset = (firstDay + 6) % 7; // понедельник = 0, воскресенье = 6
+  const offset = (firstDay + 6) % 7;
 
-  // пустые дни перед 1 числом
   for(let i=0;i<offset;i++){
     let empty=document.createElement("div");
     empty.className="day";
@@ -131,23 +130,30 @@ function buildCalendar(){
     let key = year+"-"+month+"-"+i;
     d.innerHTML = i;
 
-    // подсветка сегодняшнего дня
     if(i === todayDate) d.classList.add("today");
 
-    // цвета
+    // цвета с возможностью удаления по клику
     if(data[key] && data[key].colors){
       let colorsDiv = document.createElement("div");
       colorsDiv.className = "colors";
-      data[key].colors.forEach(c=>{
+      data[key].colors.forEach((c, idx)=>{
         let dot = document.createElement("div");
         dot.className = "dot";
         dot.style.background = c.color;
+        dot.title = c.name || "";
+        dot.onclick = function(e){
+          e.stopPropagation(); // чтобы не активировался клик дня
+          if(confirm("Удалить этот цвет?")){
+            data[key].colors.splice(idx,1);
+            localStorage.setItem("caldata", JSON.stringify(data));
+            buildCalendar();
+          }
+        }
         colorsDiv.appendChild(dot);
       });
       d.appendChild(colorsDiv);
     }
 
-    // заметки
     if(data[key] && data[key].note){
       let noteDiv = document.createElement("div");
       noteDiv.className = "notes";
@@ -155,7 +161,6 @@ function buildCalendar(){
       d.appendChild(noteDiv);
     }
 
-    // клик по дню
     d.onclick = function(){
       selectedDay = key;
       document.getElementById("selected").innerHTML = "День "+i;
@@ -210,7 +215,7 @@ function renderLegend(){
   }
 }
 
-// общий фон
+// Общий фон
 function setWallpaper(e){
   let reader=new FileReader();
   reader.onload = function(){
