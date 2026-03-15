@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Календарь с правильными днями</title>
+<title>Календарь с подсветкой сегодня</title>
+<link rel="icon" href="favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="favicon.png">
 <style>
 body{
   margin:0;
@@ -43,6 +45,7 @@ h1{text-align:center;margin:10px 0 5px 0;}
   padding-top:5px;
 }
 .selected{outline:3px solid #4da3ff;}
+.today{border:3px solid #ffeb3b;} /* подсветка сегодняшнего дня */
 .colors{display:flex;justify-content:center;gap:3px;position:absolute;bottom:25px;left:0;right:0;}
 .dot{width:10px;height:10px;border-radius:50%;}
 .notes{font-size:12px;margin-top:5px;text-align:center;}
@@ -57,9 +60,7 @@ input[type="text"]{padding:3px;border-radius:4px;border:none;width:80px;}
 <body>
 <div class="overlay">
 <h1 id="month"></h1>
-
 <div id="weekdays"></div>
-
 <div id="calendar"></div>
 
 <div class="controls">
@@ -87,6 +88,7 @@ const legendEl=document.getElementById("legendItems");
 let now=new Date();
 let year=now.getFullYear();
 let month=now.getMonth();
+let todayDate=now.getDate(); // Сегодняшнее число
 monthEl.innerHTML=now.toLocaleString("ru",{month:"long",year:"numeric"});
 
 const weekdayNames = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
@@ -101,18 +103,17 @@ let selectedDay=null;
 let data=JSON.parse(localStorage.getItem("caldata")||"{}");
 let legend=JSON.parse(localStorage.getItem("colorLegend")||"{}");
 
-// Восстанавливаем общий фон при загрузке
 if(localStorage.getItem("wallpaper")){
   document.body.style.backgroundImage="url("+localStorage.getItem("wallpaper")+")";
 }
 
-// Построение календаря с учётом дня недели
 function buildCalendar(){
   calendar.innerHTML="";
   const daysInMonth = new Date(year, month+1,0).getDate();
-  const firstDay = new Date(year,month,1).getDay(); // 0=Вск, 1=Пн...
-  let offset = firstDay==0?6:firstDay-1; // сдвиг, чтобы понедельник=0
-  // добавляем пустые блоки перед 1 числом
+  let firstDay = new Date(year, month,1).getDay(); 
+  let offset = (firstDay + 6) % 7; // понедельник=0, воскресенье=6
+
+  // пустые дни перед первым числом
   for(let i=0;i<offset;i++){
     let empty=document.createElement("div");
     empty.className="day";
@@ -120,13 +121,18 @@ function buildCalendar(){
     empty.style.cursor="default";
     calendar.appendChild(empty);
   }
+
   for(let i=1;i<=daysInMonth;i++){
     let d=document.createElement("div");
     d.className="day";
     d.dataset.day=i;
     let key=year+"-"+month+"-"+i;
     d.innerHTML = i;
-    // отображаем цвета
+
+    // Подсветка сегодняшнего дня
+    if(i===todayDate) d.classList.add("today");
+
+    // цвета
     if(data[key] && data[key].colors){
       let colorsDiv=document.createElement("div");
       colorsDiv.className="colors";
@@ -138,6 +144,7 @@ function buildCalendar(){
       });
       d.appendChild(colorsDiv);
     }
+
     // заметки
     if(data[key] && data[key].note){
       let noteDiv=document.createElement("div");
@@ -164,7 +171,6 @@ function buildCalendar(){
   renderLegend();
 }
 
-// Добавление цвета с названием
 function addColor(){
   if(!selectedDay) return;
   let c=document.getElementById("color").value;
@@ -172,16 +178,15 @@ function addColor(){
   if(!data[selectedDay]) data[selectedDay]={colors:[]};
   data[selectedDay].colors.push({color:c,name:name});
   localStorage.setItem("caldata", JSON.stringify(data));
-  
+
   if(name){
     legend[c]=name;
     localStorage.setItem("colorLegend", JSON.stringify(legend));
   }
-  
+
   buildCalendar();
 }
 
-// Отображение легенды цветов
 function renderLegend(){
   legendEl.innerHTML="";
   for(let c in legend){
@@ -192,7 +197,6 @@ function renderLegend(){
   }
 }
 
-// Общий фон
 function setWallpaper(e){
   let reader=new FileReader();
   reader.onload=function(){
